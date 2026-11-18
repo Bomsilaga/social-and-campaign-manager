@@ -506,34 +506,31 @@ $("directorProduce").onclick=async()=>{
  const brief=(typed&&typed.length>20?(previous?previous+"\n"+typed:typed):previous||typed).slice(0,3500).trim();
  if(brief.length<10)return productionProgress("Describe the Reel in chat, or type your brief first.",true);
  const duration=Math.max(8,Math.min(180,Math.round(Number($("directorDuration").value)||20)));
- if(!confirm("Create real Reel assets now? This makes one AI plan, 3 OpenAI images and 1 ElevenLabs voiceover (billable). Nothing is published. Continue?"))return;
+ const silent=/\b(no|without|skip)\s+(the\s+)?(narration|voice\s?over|voice)\b|captions?[- ]only|silent/i.test(brief);
+ if(!confirm("Create real Reel assets now? This makes one AI plan, about 1 OpenAI image per 3 seconds (up to 8) "+(silent?"(no voiceover)":"and 1 ElevenLabs voiceover")+" (billable). Nothing is published. Continue?"))return;
  directorProductionActive=true;$("directorProduce").disabled=true;
  audioFile=null;
  const errors=[],created=[];
  try{
-  await productionProgress("1/5 — Generating a timed 3-scene production plan...");
-  const d=await parseResponse(await fetch("/api/reel-plan",{method:"POST",headers:{"Content-Type":"application/json",...safeAuth()},body:JSON.stringify({brief,provider:$("directorProvider").value,duration,format:$("directorFormat").value})}));
+  await productionProgress("1/5 — Writing a hook-first, fast-cut production plan...");
+  const d=await parseResponse(await fetch("/api/reel-plan",{method:"POST",headers:{"Content-Type":"application/json",...safeAuth()},body:JSON.stringify({brief,provider:$("directorProvider").value,duration,format:$("directorFormat").value,noNarration:silent})}));
   const plan=d.plan;
   directorMessages.push({role:"assistant",content:"ASSET BUILD PLAN: "+plan.title+"\nNarration: "+plan.narration+"\nScenes: "+plan.scenes.map((s,i)=>(i+1)+". "+s.caption).join(" | ")});
   directorMessages=directorMessages.slice(-24);saveDirector();renderDirector();
-  $("voiceText").value=plan.narration;$("creativeBrief").value=brief;$("headline").value=plan.headline;$("cta").value=plan.cta;
+  $("voiceText").value=plan.narration;$("creativeBrief").value=brief;$("headline").value=plan.headline;$("cta").value=plan.cta;if(plan.postCaption&&!$("postCaption").value.trim())$("postCaption").value=plan.postCaption;
   if(scenes.length&&!confirm("Replace your current video timeline with this new Reel? The existing local scene files will be removed."))throw Error("Production cancelled before replacing timeline");
   for(const s of scenes){if(s.url)URL.revokeObjectURL(s.url);mediaCache.delete(s.id)}
   scenes=[];selection=-1;
   prefs.duration=duration;renderList();drawAt(0);
-  for(let i=0;i<3;i++){
-   await productionProgress((i+2)+"/5 — Creating original AI image for scene "+(i+1)+" of 3...");
-   try{
-    const file=await makeSceneImage(plan.scenes[i].imagePrompt,i+1);
-    addScene(file,"owned","OpenAI generated image; review scene for factual accuracy.");
-    if(scenes.length){scenes[scenes.length-1].caption=plan.scenes[i].caption;scenes[scenes.length-1].seconds=i===2?duration-Math.floor(duration/3)*2:Math.floor(duration/3);created.push(file)}
-   }catch(e){errors.push("Scene "+(i+1)+": "+e.message);
-    addScene(null,"owned","Original placeholder card");
-    if(scenes.length){scenes[scenes.length-1].caption=plan.scenes[i].caption;scenes[scenes.length-1].seconds=i===2?duration-Math.floor(duration/3)*2:Math.floor(duration/3)}
-   }
-  }
+  const n=plan.scenes.length,made=new Array(n).fill(null);let done=0,next=0;
+  for(const sc of plan.scenes){addScene(null,"owned","Original placeholder card");const c=scenes[scenes.length-1];if(c){c.caption=sc.caption;c.seconds=sc.seconds}}
+  const slots=scenes.slice(-n);renderList();drawAt(0);
+  await productionProgress("2/5 — Creating "+n+" original AI images (3 at a time)...");
+  const worker=async()=>{while(next<n){const i=next++;try{made[i]=await makeSceneImage(plan.scenes[i].imagePrompt,i+1)}catch(e){errors.push("Scene "+(i+1)+": "+e.message)}done++;await productionProgress("2/5 — AI images ready: "+done+" of "+n+"...")}};
+  await Promise.all([worker(),worker(),worker()]);
+  for(let i=0;i<n;i++){const f=made[i],t=slots[i];if(!f||!t)continue;t.url=URL.createObjectURL(f);t.filename=f.name;t.kind="image";t.source="OpenAI generated image; review scene for factual accuracy.";mediaCache.delete(t.id);created.push(f)}
   selection=0;renderList();drawAt(0);
-  await productionProgress("5/5 — Generating actual ElevenLabs narration...");
+  if(!silent){await productionProgress("5/5 — Generating actual ElevenLabs narration...");
   try{
    const r=await fetch("/api/voice",{method:"POST",headers:{"Content-Type":"application/json",...safeAuth()},body:JSON.stringify({text:plan.narration})});
    if(!r.ok){const d=await r.json().catch(()=>({}));throw Error([d.error,d.detail].filter(Boolean).join(": ")||"Voice request failed")}
@@ -542,7 +539,7 @@ $("directorProduce").onclick=async()=>{
    const player=document.createElement("audio");player.controls=true;player.src=URL.createObjectURL(blob);
    $("voiceResult").textContent="ElevenLabs voiceover created and attached to the video timeline.";
    $("voiceResult").append(player);
-  }catch(e){errors.push("ElevenLabs narration: "+e.message);$("voiceResult").textContent="Voice generation failed: "+e.message}
+  }catch(e){errors.push("ElevenLabs narration: "+e.message);$("voiceResult").textContent="Voice generation failed: "+e.message}}
   const text="REAL ASSETS: "+created.length+" AI image file(s) generated"+(audioFile?" and ElevenLabs MP3 attached":"; narration not available")+". "+(errors.length?"Errors: "+errors.join(" | "):"All planned assets generated.");
   await productionProgress(text+" Rendering the video locally now...",errors.length>0);
   document.getElementById("export").scrollIntoView({behavior:"smooth"});
