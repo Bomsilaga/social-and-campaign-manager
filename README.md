@@ -78,3 +78,14 @@ Run `supabase/meta_connections.sql` in Supabase SQL Editor to create the single-
 The server stores a long-lived user access token where Meta supports exchange; the token is encrypted AES-256-GCM using `META_TOKEN_ENCRYPTION_KEY`. The user is never shown the token. All Page data endpoints require `EDITOR_ACCESS_TOKEN`. The current connection is designed **only for one owner**. Multi-user publishing requires Supabase Auth, user-scoped token storage, rotation and audit logging.
 
 **Not implemented yet:** Facebook posting, Reels publishing, scheduled posting, analytics retrieval, comment moderation. They remain disabled even after authorisation. Test Page access first. The Graph API and Meta's OAuth flow depend on approved permissions and Page roles. Do not publish the Meta app publicly until compliant.
+
+## TikTok Sandbox account connection — v0.5
+
+1. In TikTok Developer Portal, keep Sandbox app's Login Kit and Content Posting API enabled, and set Web Login Kit redirect URI to `https://social-and-campaign-manager.vercel.app/api/tiktok/callback`. Use Sandbox credentials, not Production credentials.
+2. **Rotate the TikTok Client Secret that was previously shared in a message.** Place the replacement in Vercel as `TIKTOK_CLIENT_SECRET`, and the associated Sandbox Client Key as `TIKTOK_CLIENT_KEY`.
+3. Generate a separate base64 32-byte key for `TIKTOK_TOKEN_ENCRYPTION_KEY` using PowerShell: `$b=New-Object byte[] 32; [System.Security.Cryptography.RandomNumberGenerator]::Fill($b); [Convert]::ToBase64String($b)`. Never put it in browser settings.
+4. Configure `SUPABASE_URL` and `SUPABASE_SECRET_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`) server-side, and run `supabase/tiktok_connections.sql` in Supabase's SQL Editor.
+5. Redeploy the app from GitHub after adding environment variables. In the studio, set your `EDITOR_ACCESS_TOKEN` session token, open TikTok Sandbox, click **Connect TikTok Sandbox**, log in as an authorised Sandbox target user and accept the requested scopes.
+6. After return, use **Check TikTok connection**. Basic profile and granted scopes are displayed, while access and refresh tokens remain encrypted in Supabase and never sent to the browser.
+
+The OAuth start/callback/profile endpoints are implemented using TikTok's current Web Login Kit flow and OAuth token service, including state validation, cookie expiry, protected storage and rotating refresh tokens. **This stage does not upload or publish TikTok videos.** Sandbox credentials and integration have not been tested with live TikTok because they are not configured in Vercel. App Review demo must be recorded from the functioning test flow; no simulated success should be submitted.
