@@ -87,7 +87,7 @@ html{scroll-behavior:smooth}body{background:radial-gradient(ellipse at 72% 2%,#f
  <div class="chat-scroll" id="directorChat" role="log" aria-live="polite"><div class="chat-welcome"><strong>What are we making today?</strong>For example: “Create a compelling 60-second Australian history explainer with photorealistic scenes, subtle narration and a strong opening question.”</div></div>
  <div class="chat-quick"><button class="chat-chip" data-director-prompt="Create a 45-second factual Australian history video with a compelling question, scene-by-scene script and natural narration.">Australian documentary</button><button class="chat-chip" data-director-prompt="Plan a seven-day Facebook and Instagram content campaign with distinct original posts and a reviewable publishing calendar.">7-day content campaign</button><button class="chat-chip" data-director-prompt="Produce an engaging promotional advert with a clear offer, target audience, visual direction and call to action.">Product advertisement</button><button class="chat-chip" data-director-prompt="Help me turn my rough idea into a professionally structured video, and ask only what you absolutely need.">Develop my idea</button></div>
  <div class="chat-composer"><label class="sub" for="directorPrompt">YOUR INSTRUCTIONS</label><textarea id="directorPrompt" maxlength="12000" placeholder="Explain your idea in your own words. Include what to show, who it is for, the tone, and anything you want the AI to avoid. Shift+Enter for a new line."></textarea>
- <div class="chat-actions"><div class="actions"><button class="btn primary" id="directorSend">✦ Send to AI Director</button><button class="btn" id="directorNew">New conversation</button><button class="btn" id="directorExport">Export chat</button></div><div class="actions"><button class="btn" id="directorUseBrief">Use as creative brief</button><button class="btn" id="directorUseScript">Send AI draft to script editor</button></div></div>
+ <div class="chat-actions"><div class="actions"><button class="btn primary" id="directorSend">✦ Send to AI Director</button><button class="btn" id="directorNew">New conversation</button><button class="btn" id="directorExport">Export chat</button></div><div class="actions"><button class="btn primary" id="directorBuild" disabled>Build it now</button><button class="btn" id="directorUseBrief">Use as creative brief</button><button class="btn" id="directorUseScript">Send AI draft to script editor</button></div></div>
  <p class="chat-substatus" id="directorStatus">Your conversation is saved in this browser only. Live AI responses require the Studio token and paid generation to be enabled. No media is generated or posted simply by sending a message.</p></div>
 </section><section class="card full" id="postComposer">
 <div class="tag">POST CREATION / REVIEW DESK</div><h2>Compose posts with attached media</h2><p class="muted">Choose text-only, photo, carousel, video post or Reel. Draft copy yourself or import the AI Director's response. Attach your original/licensed media. No automatic publishing occurs.</p>
@@ -368,14 +368,84 @@ $("directorSend").onclick=async()=>{
  const msg={role:"user",content:prompt};
  directorMessages.push(msg);directorMessages=directorMessages.slice(-24);saveDirector();renderDirector();$("directorPrompt").value="";
  if(!accessToken()){setDirectorStatus("Instruction saved locally. To receive an AI response, enter your Studio access token in Settings. You can continue writing and exporting instructions.",true);return}
- if(!confirm("Send this conversation to "+$("directorProvider").selectedOptions[0].text+"? API charges may apply if paid generation is enabled. Nothing will be published.")){setDirectorStatus("Instruction saved locally. AI call cancelled; you can resume by sending a follow-up.",false);return}
+ if(!sessionStorage.getItem("boma-director-ok")){if(!confirm("Send this conversation to "+$("directorProvider").selectedOptions[0].text+"? API charges may apply. Nothing will be published. You will not be asked again this session.")){setDirectorStatus("Instruction saved locally. AI call cancelled; you can resume by sending a follow-up.",false);return}sessionStorage.setItem("boma-director-ok","1")}
  directorBusy=true;$("directorSend").disabled=true;setDirectorStatus("AI Director is reviewing your instructions…");
  try{
  const d=await parseResponse(await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json",...safeAuth()},body:JSON.stringify({provider:$("directorProvider").value,kind:$("directorKind").value,format:$("directorFormat").value,duration:Number($("directorDuration").value)||30,messages:directorMessages})}));
- directorMessages.push({role:"assistant",content:d.reply});directorMessages=directorMessages.slice(-24);saveDirector();renderDirector();setDirectorStatus("Draft ready from "+d.provider+" ("+d.model+"). Review all facts and approve the content before generating assets.");
+ directorSay([d.reply,d.plan?planText(d.plan):""].filter(Boolean).join("\n\n"));
+ if(d.plan){lastPlan=d.plan;$("directorBuild").disabled=false;await buildFromPlan(d.plan)}
+ else setDirectorStatus("Reply from "+d.provider+" ("+d.model+"). Say \"build it\" to have the studio produce it.");
  }catch(e){setDirectorStatus("AI response unavailable: "+e.message+" Your instructions remain saved locally; enable paid generation in Vercel before retrying.",true)}
  finally{directorBusy=false;$("directorSend").disabled=false}
 };
+/* Director build: turn the AI plan into real assets on the timeline */
+let lastPlan=null;
+function directorSay(text){directorMessages.push({role:"assistant",content:text});directorMessages=directorMessages.slice(-24);saveDirector();renderDirector()}
+function planText(p){return "PRODUCTION: "+p.title+"\n\nVoiceover:\n"+(p.narration||"(none)")+"\n\nScenes:\n"+p.scenes.map((x,i)=>(i+1)+". "+x.seconds+"s · "+(x.visual==="stock"?"stock footage: "+x.stock_query:x.visual==="image"?"AI image":"title card")+" · "+x.caption).join("\n")+(p.post_caption?"\n\nPost caption:\n"+p.post_caption:"")}
+async function fetchStockClip(query){
+ for(const [path,label,licence] of [["/api/pixabay","pixabay","https://pixabay.com/service/license-summary/"],["/api/stock","pexels","https://www.pexels.com/license/"]]){
+  try{
+   const d=await parseResponse(await fetch(path+"?q="+encodeURIComponent(query),{headers:safeAuth()}));
+   for(const v of (d.videos||[]).filter(v=>v.clipUrl).slice(0,3)){
+    try{const r=await fetch(v.clipUrl);if(!r.ok)continue;const blob=await r.blob();if(!blob.type.startsWith("video/")||blob.size>80_000_000)continue;
+     return {file:new File([blob],label+"-"+v.id+".mp4",{type:"video/mp4"}),source:v.url+" · "+licence}}catch{}
+   }
+  }catch{}
+ }
+ return null;
+}
+async function fetchAiImage(prompt){
+ const d=await parseResponse(await fetch("/api/image",{method:"POST",headers:{"Content-Type":"application/json",...safeAuth()},body:JSON.stringify({prompt})}));
+ const blob=await (await fetch(d.image)).blob();
+ return {file:new File([blob],"ai-scene.png",{type:"image/png"}),source:"Original image generated using "+d.model};
+}
+async function buildFromPlan(plan){
+ if(directorBuilding)return;
+ const wantImages=plan.scenes.filter(x=>x.visual==="image").length;
+ if(!confirm("Build \""+plan.title+"\" now?\n\n• "+plan.scenes.length+" scenes"+(plan.narration?"\n• ElevenLabs voiceover (billable)":"")+(wantImages?"\n• "+wantImages+" or more AI images (billable)":"")+"\n• Licensed stock footage where available"+(scenes.length?"\n\nThis replaces the "+scenes.length+" scenes currently on the timeline.":"")+"\n\nNothing will be published.")){setDirectorStatus("Build cancelled. Press \"Build it now\" when you are ready.");return}
+ directorBuilding=true;$("directorBuild").disabled=true;$("directorSend").disabled=true;
+ const notes=[],count={stock:0,image:0,card:0};let aiImages=0;
+ try{
+  for(const old of scenes.splice(0)){if(old.url)URL.revokeObjectURL(old.url);mediaCache.get(old.id)?.pause?.();mediaCache.delete(old.id)}
+  selection=-1;audioFile=null;
+  const list=plan.scenes.slice(0,prefs.maxScenes);
+  if(list.length<plan.scenes.length)notes.push("Only the first "+list.length+" scenes fit your scene limit (Settings).");
+  for(let i=0;i<list.length;i++){
+   const sc=list[i];let asset=null,kind="card";
+   setDirectorStatus("Building scene "+(i+1)+" of "+list.length+"…");
+   if(sc.visual==="stock"&&sc.stock_query){asset=await fetchStockClip(sc.stock_query);if(asset)kind="stock"}
+   if(!asset&&sc.visual!=="card"&&sc.image_prompt&&aiImages<8){
+    setDirectorStatus("Scene "+(i+1)+": generating an original image…");
+    try{asset=await fetchAiImage(sc.image_prompt);kind="image";aiImages++}catch(e){notes.push("Scene "+(i+1)+": image not generated ("+e.message+").")}
+   }
+   if(!asset&&sc.visual!=="card")notes.push("Scene "+(i+1)+": no footage found"+(sc.stock_query?" for \""+sc.stock_query+"\"":"")+"; added a title card you can replace.");
+   const before=scenes.length;
+   addScene(asset?.file||null,asset?(kind==="stock"?"licensed":"owned"):"owned",asset?.source||"Original title card");
+   if(scenes.length>before){const made=scenes.at(-1);made.caption=sc.caption;made.seconds=sc.seconds;count[kind]++}
+  }
+  if(plan.headline)$("headline").value=plan.headline;
+  if(plan.cta)$("cta").value=plan.cta;
+  let voiced=false;
+  if(plan.narration){
+   $("voiceText").value=plan.narration;setDirectorStatus("Generating ElevenLabs voiceover…");
+   try{
+    const r=await fetch("/api/voice",{method:"POST",headers:{"Content-Type":"application/json",...safeAuth()},body:JSON.stringify({text:plan.narration,voice:$("voiceId").value.trim()})});
+    if(!r.ok){const d=await r.json().catch(()=>({}));throw Error([d.error||"Voice provider failed",d.detail].filter(Boolean).join(": "))}
+    const blob=await r.blob();audioFile=new File([blob],"boma-elevenlabs-voiceover.mp3",{type:"audio/mpeg"});voiced=true;
+    const player=document.createElement("audio");player.controls=true;player.src=URL.createObjectURL(blob);
+    $("voiceResult").textContent="Voiceover attached to the timeline.";$("voiceResult").append(document.createElement("br"),player);
+   }catch(e){notes.push("Voiceover not generated: "+e.message)}
+  }
+  if(plan.post_caption&&!$("postCaption").value.trim())$("postCaption").value=plan.post_caption;
+  selection=scenes.length?0:-1;renderList();drawAt(0);
+  directorSay("BUILT on the timeline: "+scenes.length+" scenes, "+total()+" seconds ("+count.stock+" stock clips, "+count.image+" AI images, "+count.card+" title cards). "+(voiced?"ElevenLabs voiceover attached.":"No voiceover attached.")+(notes.length?"\n\nNeeds your attention:\n- "+notes.join("\n- "):"")+"\n\nNext: preview it in the editor below, then press Render to export the video file. Tell me what to change and I will rebuild it.");
+  setDirectorStatus("Built. Preview the timeline, then press Render.",notes.length>0);
+  document.getElementById("timeline").scrollIntoView({behavior:"smooth"});
+ }catch(e){directorSay("The build stopped early: "+e.message+". Anything already made is on the timeline.");setDirectorStatus("Build stopped: "+e.message,true)}
+ finally{directorBuilding=false;$("directorBuild").disabled=!lastPlan;$("directorSend").disabled=false}
+}
+let directorBuilding=false;
+$("directorBuild").onclick=()=>{if(lastPlan)buildFromPlan(lastPlan)};
 $("directorUseBrief").onclick=()=>{
  const brief=directorMessages.filter(m=>m.role==="user").map(m=>m.content).join("\n\n");
  if(!brief)return setDirectorStatus("Give the AI Director instructions first.",true);
