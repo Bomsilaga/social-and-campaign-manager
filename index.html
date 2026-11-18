@@ -508,6 +508,7 @@ $("directorProduce").onclick=async()=>{
  const duration=Math.max(8,Math.min(180,Math.round(Number($("directorDuration").value)||20)));
  if(!confirm("Create real Reel assets now? This makes one AI plan, 3 OpenAI images and 1 ElevenLabs voiceover (billable). Nothing is published. Continue?"))return;
  directorProductionActive=true;$("directorProduce").disabled=true;
+ audioFile=null;
  const errors=[],created=[];
  try{
   await productionProgress("1/5 — Generating a timed 3-scene production plan...");
