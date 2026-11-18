@@ -97,7 +97,7 @@ html{scroll-behavior:smooth}body{background:radial-gradient(ellipse at 72% 2%,#f
 <div class="field"><label for="postCaption">Post copy / caption</label><textarea id="postCaption" style="min-height:185px" maxlength="10000" placeholder="Write the post here: hook, message, hashtags and call to action."></textarea></div>
 <div class="field"><label for="postAlt">Alt text / accessibility notes</label><textarea id="postAlt" maxlength="1200" placeholder="Describe the important visual information."></textarea></div>
 <div class="post-fields"><div class="field"><label for="postRights">Media rights</label><select id="postRights"><option value="owned">I own this media</option><option value="licensed">I have a licence</option><option value="permission">I have permission</option><option value="public-domain">Verified public domain</option><option value="unknown">Unknown — block approval</option></select></div><div class="field"><label for="postSource">Licence/source reference</label><input id="postSource" placeholder="Licence details or permission URL"></div></div>
-<div class="field"><label for="postFiles">Attach images or videos</label><input id="postFiles" type="file" multiple accept="image/*,video/mp4,video/webm,video/quicktime"></div>
+<div class="field"><label for="postImagePrompt">Create an original image for this post (optional, billable AI)</label><textarea id="postImagePrompt" maxlength="1800" placeholder="Describe the image: subject, lighting, composition, visual style and what to avoid. The generated image becomes a local attachment."></textarea></div><div class="actions" style="margin-bottom:11px"><button class="btn primary" id="postGenerateImage">✦ Generate & attach image</button></div><div class="message" id="postImageStatus" style="margin-bottom:13px">OpenAI image generation requires paid-generation approval. Save the resulting image locally.</div><div class="field"><label for="postFiles">Attach images or videos</label><input id="postFiles" type="file" multiple accept="image/*,video/mp4,video/webm,video/quicktime"></div>
 <div class="actions"><button class="btn" id="postAddMedia">Attach selected media</button><button class="btn" id="postUseAI">Insert latest AI draft</button><button class="btn" id="postClear">New post</button></div><div id="postMedia" class="post-media-grid"></div>
 </div><div><div class="tag">LIVE REVIEW</div><h3 id="postPreviewTitle">Untitled post</h3><p class="muted" id="postPreviewDetails">Facebook · Text-only post</p><div class="post-view" id="postPreview">Your post preview will appear here.</div><p class="muted" id="postMediaSummary">No media attached.</p>
 <div class="notice">This is a local draft and preview. Attached file bytes are not saved to the cloud or included in exported JSON. Final platform compatibility and rights require review.</div>
@@ -414,7 +414,7 @@ function postRender(){
   const info=document.createElement("div");info.className="info";
   const name=document.createElement("div");name.textContent=a.file.name+" ("+(a.file.size/1024/1024).toFixed(1)+" MB)";
   const remove=document.createElement("button");remove.className="btn";remove.textContent="Remove";remove.onclick=()=>{URL.revokeObjectURL(a.url);postAttachments=postAttachments.filter(x=>x!==a);postApproved=false;postRender();postStatus("Attachment removed; draft approval reset.")};
-  info.append(name,remove);el.append(visual,info);area.append(el)
+  const save=document.createElement("button");save.className="btn";save.textContent="Save file";save.onclick=()=>{const link=document.createElement("a");link.href=a.url;link.download=a.file.name;link.click()};info.append(name,save,remove);el.append(visual,info);area.append(el)
  }
 }
 for(const k of postFields)$(k).addEventListener("input",()=>{postApproved=false;postSave();postRender();postStatus("Draft changed — approval required.")});
@@ -448,6 +448,28 @@ $("postCopy").onclick=async()=>{try{await navigator.clipboard.writeText($("postC
 $("postExport").onclick=()=>{const p=getPost();const manifest={schemaVersion:1,type:"social-post-manifest",...p,approvedForReview:postApproved,validationError:postValidation()||null,attachments:postAttachments.map(a=>({filename:a.file.name,mimeType:a.file.type,size:a.file.size,rights:a.rights,source:a.source,stored:false})),notes:"Manifest contains NO media file bytes, access tokens or posting authority; source files must be kept separately."};download("boma-social-post-"+Date.now()+".json",JSON.stringify(manifest,null,2),"application/json");postStatus("Post manifest downloaded. No media files were uploaded or embedded.")};
 postRender();
 
+
+
+$("postGenerateImage").onclick=async()=>{
+ const prompt=$("postImagePrompt").value.trim()||$("postTitle").value.trim()||$("postCaption").value.trim().slice(0,500);
+ if(prompt.length<12)return $("postImageStatus").textContent="Describe the image in at least 12 characters.";
+ if(postAttachments.length>=10)return $("postImageStatus").textContent="Remove an attachment first (maximum 10).";
+ if(!accessToken())return $("postImageStatus").textContent="Enter the studio access token in Settings before generating.";
+ if(!confirm("Generate one original post image with OpenAI? This may incur a paid API charge. Nothing will be posted."))return;
+ const button=$("postGenerateImage");button.disabled=true;$("postImageStatus").textContent="Requesting an original image from OpenAI…";
+ try{
+  const d=await parseResponse(await fetch("/api/image",{method:"POST",headers:{"Content-Type":"application/json",...safeAuth()},body:JSON.stringify({prompt})}));
+  if(typeof d.image!=="string"||!d.image.startsWith("data:image/png;base64,"))throw Error("Image provider returned an unexpected format.");
+  const response=await fetch(d.image),blob=await response.blob();
+  if(blob.size>100*1024*1024)throw Error("Generated image exceeds size cap");
+  const file=new File([blob],"boma-post-image-"+Date.now()+".png",{type:"image/png"});
+  postAttachments.push({file,url:URL.createObjectURL(file),kind:"image",rights:"owned",source:"OpenAI-generated original visual; review rights and content"});
+  if(["text","video","reel"].includes($("postType").value))$("postType").value="photo";
+  postApproved=false;postSave();postRender();
+  $("postImageStatus").textContent="AI image attached to your draft. Inspect and click Save file to retain a local copy.";
+ }catch(e){$("postImageStatus").textContent="Image not created: "+e.message}
+ finally{button.disabled=false}
+};
 
 // Bubbly studio creation shortcuts: genuine navigation and content selection
 document.querySelectorAll("[data-studio-go]").forEach(b=>b.addEventListener("click",()=>{
