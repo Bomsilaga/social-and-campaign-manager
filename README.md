@@ -1,37 +1,56 @@
-# Boma Social and Campaign Manager
+# Social and Campaign Manager
 
-An independently deployed, GitHub-backed short-form video production studio for Boma AI.
+Independent Boma AI Social & Campaign Manager built for the `Bomsilaga/social-and-campaign-manager` repository and the Vercel project `social-and-campaign-manager`.
 
-## Live foundation (v0.3)
+## Integration build v0.4
 
-- Responsive dark production dashboard with local image/video uploads.
-- Rights provenance for owned, licensed, permitted or public-domain clips. Unknown rights block export.
-- Up to 12 editable scenes (configurable), on-canvas captions, font/colour/alignment, headline and CTA.
-- Local playback and browser recording; WebM by default, native MP4 only where MediaRecorder reports support.
-- Subtitles (.srt), production manifest (.json) and settings backup (.json).
-- Settings & Preferences Centre: scene count/duration, video target, locale, design, approval policy and cost target.
-- Optional server-side Pexels search and stock-video import (external CDN CORS may require manual licensed download and upload).
-- Optional server-side OpenAI image generation, gated by EDITOR_ACCESS_TOKEN, API configuration, ALLOW_PAID_GENERATION=true and a per-request user confirmation.
-- No automatic posting, voice synthesis, background rendering, source-video scraping or cloud persistence yet.
+The unified dark studio offers: a provider readiness dashboard, YouTube seven-day short-video metadata discovery, OpenAI or Claude creative drafts, optional independent second-model reviews, OpenAI-generated scene images, ElevenLabs narration, licensed Pexels and Pixabay stock search, 9:16 timeline editor, timed captions, downloaded SRT files and storyboards, optional Supabase JSON manifest storage, and browser recording.
 
-## Configure Vercel
+### Actual implementation status
 
-Open the project Settings > Environment Variables. Add EDITOR_ACCESS_TOKEN (a long random string) and, optionally, PEXELS_API_KEY. Add OPENAI_API_KEY only when ready to generate original images. Keep ALLOW_PAID_GENERATION=false until you explicitly approve billable usage. Add OPENAI_IMAGE_MODEL if needed.
+| Provider | Implemented | Restrictions |
+| --- | --- | --- |
+| OpenAI | Image + original text generation via server routes | Paid calls disabled until `ALLOW_PAID_GENERATION=true`; must also have key and access token |
+| Claude | Text drafting + second-model review | Needs ANTHROPIC_API_KEY + ANTHROPIC_MODEL; also gated by paid switch |
+| ElevenLabs | Text-to-speech MP3 attached to editor | Needs voice ID + key; gated by paid switch |
+| Pexels | Keyword search + browser clip import attempt | API key; CDN CORS can prevent direct import; manual licensed download supported |
+| Pixabay | Keyword video search + browser import attempt | API key; inspect item usage rights |
+| YouTube | Last-seven-days AU public video discovery, metadata | API key; public statistics are snapshots, no direct video downloads or publishing |
+| Supabase | Protected POST/GET of storyboard JSON manifests | Needs secret key, project URL and `supabase/schema.sql` migration; no media binaries |
+| Facebook / Instagram | Setup readiness only | OAuth app permissions and access review required before any publishing |
+| TikTok | Setup readiness only | Developer access and posting approval required |
+| MP4 rendering | Native browser MediaRecorder only if supported | WebM fallback. No server FFmpeg/Remotion deployment |
+| Calendar / campaign scheduler | Not implemented | No automatic publishing |
 
-After a deployment with new settings, open Settings & Preferences in the studio, paste the matching access token for the current browser session only and click Check provider configuration. Do not insert API keys in this UI. It accepts only the studio access token, not raw provider keys.
+## Vercel setup
 
-This prototype uses a shared token rather than user accounts. It must remain access-controlled and should be upgraded to owner authentication, server-side usage metering and rate limiting before public or commercial deployment. The on-screen budget preference does not impose a provider billing cap.
+1. In [Vercel project settings](https://vercel.com/ipaliboboma-3927s-projects/social-and-campaign-manager/settings/environment-variables), add `EDITOR_ACCESS_TOKEN` as a long random unique secret. It is the prototype owner access token, NOT your OpenAI/Claude/Pexels key.
+2. Add required provider credentials from the official provider consoles. See `.env.example` for the complete names. Use sensitive/encrypted environment variables, never `NEXT_PUBLIC_*`.
+3. Set `ALLOW_PAID_GENERATION=false` until you have checked provider billing and budgets; then change to `true` only with your explicit authorisation. Each paid request prompts for confirmation in the browser. The app's local A$ budget preference is NOT a provider-side hard cap.
+4. Set `ANTHROPIC_MODEL` to a currently supported Claude model; set `ELEVENLABS_VOICE_ID` to an authorised voice ID.
+5. For Supabase, create a project and run `supabase/schema.sql` in its SQL editor; then configure `SUPABASE_URL` and a server-only secret/service-role key. This single-owner prototype has no Supabase Auth or public RLS policy.
+6. Redeploy from `main` so new env vars reach the server. In the app's Settings Centre, paste ONLY the `EDITOR_ACCESS_TOKEN` into the studio token input for this browser session and click `Refresh connections`.
 
-## Local run
+## How to test without spending money
 
-Open index.html directly to test offline editing. The /api routes require Vercel deployment or a compatible local server. Assets are not uploaded to a central database: refreshing the page discards the timeline. Browser media support and audio-capture limitations vary.
+- Open the dashboard and verify the page loads.
+- Add owned images or license-cleared video clips and demo title cards.
+- Edit scene durations, captions and preferences; preview the timeline.
+- Export storyboard JSON and SRT captions.
+- With Pexels/Pixabay configured, search licensed footage, inspect provenance and import only approved footage.
+- With YouTube API configured, search seven-day public-video metadata; this is not a footage downloader.
+- Keep `ALLOW_PAID_GENERATION=false` and verify the creative, voice and image routes reject paid calls.
 
-## Next milestones
+## Security and copyright
 
-1. Authentication, persistent project/asset storage, proper server-side budget enforcement.
-2. Server-side FFmpeg/Remotion H.264 MP4 worker and reliable voiceover mixing.
-3. Advanced AI scene generation, licensed footage import, clip trimming, transitions and 9:16 reframing.
-4. Official trend discovery adapters, scheduled analysis and evidence-based scoring.
-5. Human-review workflow and official publishing integrations.
+- The prototype uses a **shared access token** and no user-account authentication, job quota or distributed rate limiting. Do not make this a public multi-user SaaS before implementing OAuth/account sessions, workspace isolation, CSRF protection, rate limiting, persistent audit logs and server-side cost budgets.
+- Third-party media rights must be checked before reuse. Changing overlays, crops, audio or captions does not itself give permission to republish.
+- Rights marked unknown block export. Pexels and Pixabay may have content-specific usage restrictions; check the individual licence.
+- The project vault stores **metadata only**. Cloud-saved storyboards do not restore local video/image bytes.
+- The existing browser renderer has no guaranteed MP4 output; high-quality consistent H.264 rendering requires a dedicated worker.
 
-Third-party online video is only imported when an appropriate licence, ownership or permission supports use. Minor edits, overlays or voiceovers alone do not make another creator's footage safe to reuse.
+## Architecture direction
+
+Keep provider adapters independent. Introduce Supabase Auth, object storage and a durable job queue before platform OAuth. Add FFmpeg/Remotion as an isolated renderer worker, not inside the Vercel frontend request. Publishing adapters must use platform-authorised OAuth scopes and keep all publishing disabled until a human approves each content version.
+
+All services remain optional. You do not need to pay for or connect every one to test the core workflow.
