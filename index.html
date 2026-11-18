@@ -87,8 +87,8 @@ html{scroll-behavior:smooth}body{background:radial-gradient(ellipse at 72% 2%,#f
  <div class="chat-scroll" id="directorChat" role="log" aria-live="polite"><div class="chat-welcome"><strong>What are we making today?</strong>For example: “Create a compelling 60-second Australian history explainer with photorealistic scenes, subtle narration and a strong opening question.”</div></div>
  <div class="chat-quick"><button class="chat-chip" data-director-prompt="Create a 45-second factual Australian history video with a compelling question, scene-by-scene script and natural narration.">Australian documentary</button><button class="chat-chip" data-director-prompt="Plan a seven-day Facebook and Instagram content campaign with distinct original posts and a reviewable publishing calendar.">7-day content campaign</button><button class="chat-chip" data-director-prompt="Produce an engaging promotional advert with a clear offer, target audience, visual direction and call to action.">Product advertisement</button><button class="chat-chip" data-director-prompt="Help me turn my rough idea into a professionally structured video, and ask only what you absolutely need.">Develop my idea</button></div>
  <div class="chat-composer"><label class="sub" for="directorPrompt">YOUR INSTRUCTIONS</label><textarea id="directorPrompt" maxlength="12000" placeholder="Explain your idea in your own words. Include what to show, who it is for, the tone, and anything you want the AI to avoid. Shift+Enter for a new line."></textarea>
- <div class="chat-actions"><div class="actions"><button class="btn primary" id="directorSend">✦ Send to AI Director</button><button class="btn" id="directorRetry" style="display:none">↻ Retry response</button><button class="btn" id="directorNew">New conversation</button><button class="btn" id="directorExport">Export chat</button></div><div class="actions"><button class="btn" id="directorUseBrief">Use as creative brief</button><button class="btn" id="directorUseScript">Send AI draft to script editor</button></div></div>
- <p class="chat-substatus" id="directorStatus">Your conversation is saved in this browser only. Live AI responses require the Studio token and paid generation to be enabled. No media is generated or posted simply by sending a message.</p></div>
+ <div class="chat-actions"><div class="actions"><button class="btn primary" id="directorProduce">▶ Create Reel Now</button><button class="btn primary" id="directorSend">✦ Send to AI Director</button><button class="btn" id="directorRetry" style="display:none">↻ Retry response</button><button class="btn" id="directorNew">New conversation</button><button class="btn" id="directorExport">Export chat</button></div><div class="actions"><button class="btn" id="directorUseBrief">Use as creative brief</button><button class="btn" id="directorUseScript">Send AI draft to script editor</button></div></div>
+ <p class="chat-substatus" id="productionProgress" aria-live="polite">Create Reel Now generates real images, voiceover and an editable video timeline; export is a separate action.</p><p class="chat-substatus" id="directorStatus">Your conversation is saved in this browser only. Live AI responses require the Studio token and paid generation to be enabled. No media is generated or posted simply by sending a message.</p></div>
 </section><section class="card full" id="postComposer">
 <div class="tag">POST CREATION / REVIEW DESK</div><h2>Compose posts with attached media</h2><p class="muted">Choose text-only, photo, carousel, video post or Reel. Draft copy yourself or import the AI Director's response. Attach your original/licensed media. No automatic publishing occurs.</p>
 <div class="post-layout"><div>
@@ -484,6 +484,68 @@ $("postGenerateImage").onclick=async()=>{
   $("postImageStatus").textContent="AI image attached to your draft. Inspect and click Save file to retain a local copy.";
  }catch(e){$("postImageStatus").textContent="Image not created: "+e.message}
  finally{button.disabled=false}
+};
+
+
+/* Production action: actual provider calls, real local image/audio files, and editable timeline */
+let directorProductionActive=false;
+async function productionProgress(message,err=false){setDirectorStatus(message,err);$("productionProgress").textContent=message}
+async function makeSceneImage(prompt,index){
+ const d=await parseResponse(await fetch("/api/image",{method:"POST",headers:{"Content-Type":"application/json",...safeAuth()},body:JSON.stringify({prompt})}));
+ if(!d.image?.startsWith("data:image/png;base64,"))throw Error("OpenAI did not return an image for Scene "+index);
+ const response=await fetch(d.image),blob=await response.blob();
+ if(!blob.type.startsWith("image/"))throw Error("Image format invalid for Scene "+index);
+ return new File([blob],"boma-reel-scene-"+index+".png",{type:"image/png"});
+}
+$("directorProduce").onclick=async()=>{
+ if(directorProductionActive)return;
+ if(!accessToken())return productionProgress("Enter the Studio access token in Settings to create media.",true);
+ const typed=$("directorPrompt").value.trim();
+ const previous=directorMessages.filter(m=>m.role==="user").slice(-5).map(m=>m.content).join("\n");
+ const brief=(typed||previous).slice(0,3500).trim();
+ if(brief.length<10)return productionProgress("Describe the Reel in chat, or type your brief first.",true);
+ const duration=Math.max(8,Math.min(180,Math.round(Number($("directorDuration").value)||20)));
+ if(!confirm("Create real Reel assets now? This makes one AI plan, 3 OpenAI images and 1 ElevenLabs voiceover (billable). Nothing is published. Continue?"))return;
+ directorProductionActive=true;$("directorProduce").disabled=true;
+ const errors=[],created=[];
+ try{
+  await productionProgress("1/5 — Generating a timed 3-scene production plan...");
+  const d=await parseResponse(await fetch("/api/reel-plan",{method:"POST",headers:{"Content-Type":"application/json",...safeAuth()},body:JSON.stringify({brief,provider:$("directorProvider").value,duration,format:$("directorFormat").value})}));
+  const plan=d.plan;
+  directorMessages.push({role:"assistant",content:"ASSET BUILD PLAN: "+plan.title+"\nNarration: "+plan.narration+"\nScenes: "+plan.scenes.map((s,i)=>(i+1)+". "+s.caption).join(" | ")});
+  directorMessages=directorMessages.slice(-24);saveDirector();renderDirector();
+  $("voiceText").value=plan.narration;$("creativeBrief").value=brief;$("headline").value=plan.headline;$("cta").value=plan.cta;
+  if(scenes.length&&!confirm("Replace your current video timeline with this new Reel? The existing local scene files will be removed."))throw Error("Production cancelled before replacing timeline");
+  for(const s of scenes){if(s.url)URL.revokeObjectURL(s.url);mediaCache.delete(s.id)}
+  scenes=[];selection=-1;
+  prefs.duration=duration;renderList();drawAt(0);
+  for(let i=0;i<3;i++){
+   await productionProgress((i+2)+"/5 — Creating original AI image for scene "+(i+1)+" of 3...");
+   try{
+    const file=await makeSceneImage(plan.scenes[i].imagePrompt,i+1);
+    addScene(file,"owned","OpenAI generated image; review scene for factual accuracy.");
+    if(scenes.length){scenes[scenes.length-1].caption=plan.scenes[i].caption;scenes[scenes.length-1].seconds=i===2?duration-Math.floor(duration/3)*2:Math.floor(duration/3);created.push(file)}
+   }catch(e){errors.push("Scene "+(i+1)+": "+e.message);
+    addScene(null,"owned","Original placeholder card");
+    if(scenes.length){scenes[scenes.length-1].caption=plan.scenes[i].caption;scenes[scenes.length-1].seconds=i===2?duration-Math.floor(duration/3)*2:Math.floor(duration/3)}
+   }
+  }
+  selection=0;renderList();drawAt(0);
+  await productionProgress("5/5 — Generating actual ElevenLabs narration...");
+  try{
+   const r=await fetch("/api/voice",{method:"POST",headers:{"Content-Type":"application/json",...safeAuth()},body:JSON.stringify({text:plan.narration})});
+   if(!r.ok){const d=await r.json().catch(()=>({}));throw Error([d.error,d.detail].filter(Boolean).join(": ")||"Voice request failed")}
+   const blob=await r.blob();if(!blob.type.includes("audio"))throw Error("Unexpected voice response");
+   audioFile=new File([blob],"boma-reel-elevenlabs.mp3",{type:"audio/mpeg"});
+   const player=document.createElement("audio");player.controls=true;player.src=URL.createObjectURL(blob);
+   $("voiceResult").textContent="ElevenLabs voiceover created and attached to the video timeline.";
+   $("voiceResult").append(player);
+  }catch(e){errors.push("ElevenLabs narration: "+e.message);$("voiceResult").textContent="Voice generation failed: "+e.message}
+  const text="REAL ASSETS: "+created.length+" AI image file(s) generated"+(audioFile?" and ElevenLabs MP3 attached":"; narration not available")+". "+(errors.length?"Errors: "+errors.join(" | "):"All planned assets generated.")+" Edit or preview the scenes below, then choose Render video to download the result.";
+  await productionProgress(text,errors.length>0);
+  document.getElementById("timeline").scrollIntoView({behavior:"smooth"});
+ }catch(e){await productionProgress("Reel production stopped: "+e.message,true)}
+ finally{directorProductionActive=false;$("directorProduce").disabled=false}
 };
 
 // Bubbly studio creation shortcuts: genuine navigation and content selection
