@@ -54,7 +54,7 @@ Posts and attached media should be **one saved entity** with content type, sourc
 | Responsive studio | Single-page HTML/CSS/JS dashboard, editor and settings | UX is being refined; no full user authentication |
 | AI Director Chat | Multi-turn OpenAI/Claude chat via `POST /api/chat`, conversation locally saved and exportable | Needs studio token + `ALLOW_PAID_GENERATION=true`; calls are billable; no long-lived cloud chat archive |
 | AI Creative Desk | OpenAI or Claude concepts, script, storyboard, independent second-model review | AI outputs need fact checking; no actual web browsing by creative endpoint |
-| Post & Media Composer | Text/image/carousel/video/Reel post selection; caption, alt text, multiple local image/video previews, rights checks, local approval, copy and JSON export | **No platform upload, no persistent media storage, no automatic image creation inside post workflow**; approved state is local only |
+| Post & Media Composer | Text/image/carousel/video/Reel post selection; caption, alt text, multiple local image/video previews, rights checks, local approval, copy and JSON export | **No platform upload or persistent media storage**; local approval only. Original post images can be generated/attached via protected OpenAI image API when paid switch is enabled. |
 | Reels timeline | Import images/videos, create demo card, edit captions/scene length, preview, make SRT and storyboard JSON | Max 24 scenes by preference; local files vanish on refresh; practical device limits |
 | Browser video export | Canvas/MediaRecorder rendering, WebM or native MP4 if browser supports | 600-second prototype limit; H.264 MP4 not guaranteed; playback and audio vary by browser |
 | AI images | Protected OpenAI image-generation route and import to timeline | Billable when enabled; cannot guarantee scene consistency |
@@ -132,6 +132,7 @@ Keys must be in host secret variables, not committed to GitHub or pasted into ch
 ### Current prototype checks
 - [ ] Live site loads over HTTPS; desktop/mobile visual QA.
 - [ ] Post composer supports text-only and caption+image; allows multiple images; previews locally and blocks incompatible/unknown-rights media approval.
+- [ ] When billable image generation is enabled, **Generate & attach image** creates an actual original image, shows it in the post preview and allows saving its file locally.
 - [ ] Local media never uploads without a specific action; export post manifest contains filenames/rights but not file bytes.
 - [ ] Chat preserves user/assistant exchanges and allows continuation, export and handoff to Creative Desk.
 - [ ] Signed-in studio token accepted; unauthorised requests rejected.
@@ -179,7 +180,7 @@ G. **Security:** encrypted OAuth tokens, least-privilege scopes, no public servi
 
 1. Open https://social-and-campaign-manager.vercel.app/#director, enter your Studio access token in Settings.
 2. Describe the content; choose **OpenAI** or **Claude**. Real AI replies require `ALLOW_PAID_GENERATION=true` and can incur charges.
-3. For static content open **Post & Media Composer**; write/copy a caption, attach media, preview, approve locally, export the package.
+3. For static content open **Post & Media Composer**; write/copy a caption, attach media or use the **Generate & attach image** action with OpenAI (billable if enabled), preview, approve locally, export the package. Download media files separately.
 4. For videos, use the scene editor, caption and narration tools; choose 10–30 seconds as an idea, not a constraint. Export locally on a supported browser.
 5. Review everything manually. There is **no automatic posting** at this stage.
 
