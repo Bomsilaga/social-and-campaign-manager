@@ -54,3 +54,27 @@ The unified dark studio offers: a provider readiness dashboard, YouTube seven-da
 Keep provider adapters independent. Introduce Supabase Auth, object storage and a durable job queue before platform OAuth. Add FFmpeg/Remotion as an isolated renderer worker, not inside the Vercel frontend request. Publishing adapters must use platform-authorised OAuth scopes and keep all publishing disabled until a human approves each content version.
 
 All services remain optional. You do not need to pay for or connect every one to test the core workflow.
+
+## Meta Facebook Pages setup (read-only connection stage)
+
+Meta developer app: Campaigner 2. Supported use case: **Manage everything on your Page**. For own-role testing, ensure `pages_show_list`, `pages_read_engagement`, `pages_manage_posts` are available to the account and app.
+
+**Exact Valid OAuth Redirect URI**:
+`https://social-and-campaign-manager.vercel.app/api/meta/callback`
+
+Set in Meta > Campaigner 2 > Manage everything on your Page > Facebook Login configuration > Valid OAuth Redirect URIs (the UI label may vary). Use HTTPS. An OAuth redirect URL is not the same thing as a Webhooks Callback URL.
+
+In Vercel Environment Variables set:
+- `META_APP_ID` (from Meta App Settings -> Basic).
+- `META_APP_SECRET` (private, only in Vercel; never commit to source).
+- `META_TOKEN_ENCRYPTION_KEY` (a random 32-byte key, base64-encoded). Create with PowerShell:
+  `$b=New-Object byte[] 32; [System.Security.Cryptography.RandomNumberGenerator]::Fill($b); [Convert]::ToBase64String($b)`
+- `EDITOR_ACCESS_TOKEN` (existing studio token).
+- `SUPABASE_URL` plus `SUPABASE_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY`.
+- Optional `PUBLIC_APP_URL=https://social-and-campaign-manager.vercel.app` (the app restricts this to its public production hostname).
+
+Run `supabase/meta_connections.sql` in Supabase SQL Editor to create the single-owner encrypted-token vault. Then redeploy the Vercel project and open the app > Settings > Studio access token, then Facebook Pages > Connect Facebook Pages. Authorise the Page(s), return to the studio, then Refresh Facebook Pages.
+
+The server stores a long-lived user access token where Meta supports exchange; the token is encrypted AES-256-GCM using `META_TOKEN_ENCRYPTION_KEY`. The user is never shown the token. All Page data endpoints require `EDITOR_ACCESS_TOKEN`. The current connection is designed **only for one owner**. Multi-user publishing requires Supabase Auth, user-scoped token storage, rotation and audit logging.
+
+**Not implemented yet:** Facebook posting, Reels publishing, scheduled posting, analytics retrieval, comment moderation. They remain disabled even after authorisation. Test Page access first. The Graph API and Meta's OAuth flow depend on approved permissions and Page roles. Do not publish the Meta app publicly until compliant.
