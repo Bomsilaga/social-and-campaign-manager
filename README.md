@@ -1,28 +1,37 @@
-# Social and Campaign Manager
+# Boma Social and Campaign Manager
 
-Boma AI's standalone short-form social video production application.
+An independently deployed, GitHub-backed short-form video production studio for Boma AI.
 
-## Current capabilities (v0.2)
-- Add locally owned, permitted, licensed, or public-domain images and video clips.
-- Enter rights provenance for each external clip; unknown rights block export.
-- Create up to six scenes, with scene captions, durations, cover/contain framing.
-- Preview a vertical 9:16 canvas composition.
-- Optional uploaded audio track for a browser recording.
-- Export WebM using the browser MediaRecorder API, SRT subtitle file, and JSON production manifest.
-- No automatic publishing, scraping, licensed stock downloading, or AI image creation yet.
+## Live foundation (v0.3)
 
-## Running locally
-Open `index.html` in a current Chrome or Edge browser. No npm dependencies or API credentials are required for this foundation version. Audio recording support varies by browser. Browser media export is real time and may fail on unsupported devices. There is no persistent cloud storage: uploads remain in browser memory and will be lost on refresh.
+- Responsive dark production dashboard with local image/video uploads.
+- Rights provenance for owned, licensed, permitted or public-domain clips. Unknown rights block export.
+- Up to 12 editable scenes (configurable), on-canvas captions, font/colour/alignment, headline and CTA.
+- Local playback and browser recording; WebM by default, native MP4 only where MediaRecorder reports support.
+- Subtitles (.srt), production manifest (.json) and settings backup (.json).
+- Settings & Preferences Centre: scene count/duration, video target, locale, design, approval policy and cost target.
+- Optional server-side Pexels search and stock-video import (external CDN CORS may require manual licensed download and upload).
+- Optional server-side OpenAI image generation, gated by EDITOR_ACCESS_TOKEN, API configuration, ALLOW_PAID_GENERATION=true and a per-request user confirmation.
+- No automatic posting, voice synthesis, background rendering, source-video scraping or cloud persistence yet.
 
-## Roadmap
-1. Replace static HTML with a modular Next.js/TypeScript application and persistent database/object storage.
-2. Add AI image and script generation through server-only credentials.
-3. Integrate licence-aware stock media providers; never infer that a publicly viewable social video may be reused merely because it can be edited.
-4. Add a reliable server-side FFmpeg/Remotion worker and MP4 H.264 output, soundtrack mixing, subtitles, trim, transitions and voice-over sync.
-5. Add trend APIs, campaign approvals, OAuth and social publishing only after testing.
+## Configure Vercel
 
-## Security
-Never commit keys. Configure server-side provider keys in Vercel Environment Variables when integrations are implemented. The current app has no server endpoints and deliberately does not use secrets.
+Open the project Settings > Environment Variables. Add EDITOR_ACCESS_TOKEN (a long random string) and, optionally, PEXELS_API_KEY. Add OPENAI_API_KEY only when ready to generate original images. Keep ALLOW_PAID_GENERATION=false until you explicitly approve billable usage. Add OPENAI_IMAGE_MODEL if needed.
 
-## Deployment
-The app has been deployed from the `Bomsilaga/social-and-campaign-manager` GitHub main commit to an existing Vercel project. Git push-to-deploy automation must be verified separately in Vercel Settings > Git.
+After a deployment with new settings, open Settings & Preferences in the studio, paste the matching access token for the current browser session only and click Check provider configuration. Do not insert API keys in this UI. It accepts only the studio access token, not raw provider keys.
+
+This prototype uses a shared token rather than user accounts. It must remain access-controlled and should be upgraded to owner authentication, server-side usage metering and rate limiting before public or commercial deployment. The on-screen budget preference does not impose a provider billing cap.
+
+## Local run
+
+Open index.html directly to test offline editing. The /api routes require Vercel deployment or a compatible local server. Assets are not uploaded to a central database: refreshing the page discards the timeline. Browser media support and audio-capture limitations vary.
+
+## Next milestones
+
+1. Authentication, persistent project/asset storage, proper server-side budget enforcement.
+2. Server-side FFmpeg/Remotion H.264 MP4 worker and reliable voiceover mixing.
+3. Advanced AI scene generation, licensed footage import, clip trimming, transitions and 9:16 reframing.
+4. Official trend discovery adapters, scheduled analysis and evidence-based scoring.
+5. Human-review workflow and official publishing integrations.
+
+Third-party online video is only imported when an appropriate licence, ownership or permission supports use. Minor edits, overlays or voiceovers alone do not make another creator's footage safe to reuse.
