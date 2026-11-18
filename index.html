@@ -363,6 +363,7 @@ $("directorPrompt").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefa
 $("directorSend").onclick=async()=>{
  if(directorBusy)return;
  const prompt=$("directorPrompt").value.trim();
+ if(/^(create now|create it now|do all|make the reel|produce now|render now|create this already)[.!\s]*$/i.test(prompt)&&$("directorKind").value==="video"){$("directorPrompt").value="";$("directorProduce").click();return}
  if(!prompt)return setDirectorStatus("Explain what you want created before sending.",true);
  if(prompt.length>12000)return setDirectorStatus("Your instruction is too long (12,000 characters maximum).",true);
  const msg={role:"user",content:prompt};
@@ -502,7 +503,7 @@ $("directorProduce").onclick=async()=>{
  if(!accessToken())return productionProgress("Enter the Studio access token in Settings to create media.",true);
  const typed=$("directorPrompt").value.trim();
  const previous=directorMessages.filter(m=>m.role==="user").slice(-5).map(m=>m.content).join("\n");
- const brief=(typed||previous).slice(0,3500).trim();
+ const brief=(typed&&typed.length>20?(previous?previous+"\n"+typed:typed):previous||typed).slice(0,3500).trim();
  if(brief.length<10)return productionProgress("Describe the Reel in chat, or type your brief first.",true);
  const duration=Math.max(8,Math.min(180,Math.round(Number($("directorDuration").value)||20)));
  if(!confirm("Create real Reel assets now? This makes one AI plan, 3 OpenAI images and 1 ElevenLabs voiceover (billable). Nothing is published. Continue?"))return;
