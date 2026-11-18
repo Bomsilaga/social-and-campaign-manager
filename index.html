@@ -525,10 +525,20 @@ $("directorProduce").onclick=async()=>{
   const n=plan.scenes.length,made=new Array(n).fill(null);let done=0,next=0;
   for(const sc of plan.scenes){addScene(null,"owned","Original placeholder card");const c=scenes[scenes.length-1];if(c){c.caption=sc.caption;c.seconds=sc.seconds}}
   const slots=scenes.slice(-n);renderList();drawAt(0);
-  await productionProgress("2/5 — Creating "+n+" original AI images (3 at a time)...");
-  const worker=async()=>{while(next<n){const i=next++;try{made[i]=await makeSceneImage(plan.scenes[i].imagePrompt,i+1)}catch(e){errors.push("Scene "+(i+1)+": "+e.message)}done++;await productionProgress("2/5 — AI images ready: "+done+" of "+n+"...")}};
-  await Promise.all([worker(),worker(),worker()]);
-  for(let i=0;i<n;i++){const f=made[i],t=slots[i];if(!f||!t)continue;t.url=URL.createObjectURL(f);t.filename=f.name;t.kind="image";t.source="OpenAI generated image; review scene for factual accuracy.";mediaCache.delete(t.id);created.push(f)}
+  await productionProgress("2/5 — Creating "+n+" original AI images (with retries and stock fallback)...");
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  const stockFallback=async q=>{const d=await parseResponse(await fetch("/api/pixabay?q="+encodeURIComponent(q),{headers:safeAuth()}));for(const v of (d.videos||[]).filter(v=>v.clipUrl).slice(0,3)){try{const r=await fetch(v.clipUrl);if(!r.ok)continue;const blob=await r.blob();if(blob.type.startsWith("video/")&&blob.size<80000000)return new File([blob],"pixabay-"+v.id+".mp4",{type:"video/mp4"})}catch{}}throw Error("no stock footage found for \""+q+"\"")};
+  const visual=async i=>{
+   const sc=plan.scenes[i];let lastErr;
+   for(let attempt=0;attempt<3;attempt++){
+    try{return await makeSceneImage(sc.imagePrompt,i+1)}catch(e){lastErr=e;if(/token|Unauthor|disabled|not configured|Prompt must/i.test(e.message))break;await sleep(3000*(attempt+1))}
+   }
+   if(sc.stockQuery){try{const f=await stockFallback(sc.stockQuery);errors.push("Scene "+(i+1)+": AI image failed ("+lastErr.message.slice(0,120)+"); used licensed stock footage instead.");return f}catch(e2){lastErr=Error(lastErr.message+" / stock: "+e2.message)}}
+   throw lastErr;
+  };
+  const worker=async()=>{while(next<n){const i=next++;try{made[i]=await visual(i)}catch(e){errors.push("Scene "+(i+1)+": "+e.message.slice(0,220))}done++;await productionProgress("2/5 — Visuals ready: "+done+" of "+n+"...")}};
+  await Promise.all([worker(),worker()]);
+  for(let i=0;i<n;i++){const f=made[i],t=slots[i];if(!f||!t)continue;const vid=f.type.startsWith("video/");t.url=URL.createObjectURL(f);t.filename=f.name;t.kind=vid?"video":"image";t.rights=vid?"licensed":"owned";t.source=vid?"Pixabay licensed footage: https://pixabay.com/service/license-summary/":"OpenAI generated image; review scene for factual accuracy.";mediaCache.delete(t.id);created.push(f)}
   selection=0;renderList();drawAt(0);
   if(!silent){await productionProgress("5/5 — Generating actual ElevenLabs narration...");
   try{

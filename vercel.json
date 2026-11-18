@@ -15,5 +15,13 @@
         }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "api/image.js": {
+      "maxDuration": 60
+    },
+    "api/reel-plan.js": {
+      "maxDuration": 60
+    }
+  }
 }
