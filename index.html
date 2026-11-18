@@ -87,7 +87,7 @@ html{scroll-behavior:smooth}body{background:radial-gradient(ellipse at 72% 2%,#f
  <div class="chat-scroll" id="directorChat" role="log" aria-live="polite"><div class="chat-welcome"><strong>What are we making today?</strong>For example: “Create a compelling 60-second Australian history explainer with photorealistic scenes, subtle narration and a strong opening question.”</div></div>
  <div class="chat-quick"><button class="chat-chip" data-director-prompt="Create a 45-second factual Australian history video with a compelling question, scene-by-scene script and natural narration.">Australian documentary</button><button class="chat-chip" data-director-prompt="Plan a seven-day Facebook and Instagram content campaign with distinct original posts and a reviewable publishing calendar.">7-day content campaign</button><button class="chat-chip" data-director-prompt="Produce an engaging promotional advert with a clear offer, target audience, visual direction and call to action.">Product advertisement</button><button class="chat-chip" data-director-prompt="Help me turn my rough idea into a professionally structured video, and ask only what you absolutely need.">Develop my idea</button></div>
  <div class="chat-composer"><label class="sub" for="directorPrompt">YOUR INSTRUCTIONS</label><textarea id="directorPrompt" maxlength="12000" placeholder="Explain your idea in your own words. Include what to show, who it is for, the tone, and anything you want the AI to avoid. Shift+Enter for a new line."></textarea>
- <div class="chat-actions"><div class="actions"><button class="btn primary" id="directorSend">✦ Send to AI Director</button><button class="btn" id="directorNew">New conversation</button><button class="btn" id="directorExport">Export chat</button></div><div class="actions"><button class="btn" id="directorUseBrief">Use as creative brief</button><button class="btn" id="directorUseScript">Send AI draft to script editor</button></div></div>
+ <div class="chat-actions"><div class="actions"><button class="btn primary" id="directorSend">✦ Send to AI Director</button><button class="btn" id="directorRetry" style="display:none">↻ Retry response</button><button class="btn" id="directorNew">New conversation</button><button class="btn" id="directorExport">Export chat</button></div><div class="actions"><button class="btn" id="directorUseBrief">Use as creative brief</button><button class="btn" id="directorUseScript">Send AI draft to script editor</button></div></div>
  <p class="chat-substatus" id="directorStatus">Your conversation is saved in this browser only. Live AI responses require the Studio token and paid generation to be enabled. No media is generated or posted simply by sending a message.</p></div>
 </section><section class="card full" id="postComposer">
 <div class="tag">POST CREATION / REVIEW DESK</div><h2>Compose posts with attached media</h2><p class="muted">Choose text-only, photo, carousel, video post or Reel. Draft copy yourself or import the AI Director's response. Attach your original/licensed media. No automatic publishing occurs.</p>
@@ -369,12 +369,27 @@ $("directorSend").onclick=async()=>{
  directorMessages.push(msg);directorMessages=directorMessages.slice(-24);saveDirector();renderDirector();$("directorPrompt").value="";
  if(!accessToken()){setDirectorStatus("Instruction saved locally. To receive an AI response, enter your Studio access token in Settings. You can continue writing and exporting instructions.",true);return}
  if(!confirm("Send this conversation to "+$("directorProvider").selectedOptions[0].text+"? API charges may apply if paid generation is enabled. Nothing will be published.")){setDirectorStatus("Instruction saved locally. AI call cancelled; you can resume by sending a follow-up.",false);return}
- directorBusy=true;$("directorSend").disabled=true;setDirectorStatus("AI Director is reviewing your instructions…");
+ directorBusy=true;$("directorSend").disabled=true;$("directorRetry").style.display="none";setDirectorStatus("AI Director is working on your draft…");
  try{
  const d=await parseResponse(await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json",...safeAuth()},body:JSON.stringify({provider:$("directorProvider").value,kind:$("directorKind").value,format:$("directorFormat").value,duration:Number($("directorDuration").value)||30,messages:directorMessages})}));
  directorMessages.push({role:"assistant",content:d.reply});directorMessages=directorMessages.slice(-24);saveDirector();renderDirector();setDirectorStatus("Draft ready from "+d.provider+" ("+d.model+"). Review all facts and approve the content before generating assets.");
- }catch(e){setDirectorStatus("AI response unavailable: "+e.message+" Your instructions remain saved locally; enable paid generation in Vercel before retrying.",true)}
+ }catch(e){setDirectorStatus("AI response unavailable: "+e.message+". Your brief is safe. Click Retry response or switch models.",true);$("directorRetry").style.display="inline-block"}
  finally{directorBusy=false;$("directorSend").disabled=false}
+};
+
+$("directorRetry").onclick=async()=>{
+ if(directorBusy||!directorMessages.length)return;
+ if(!accessToken())return setDirectorStatus("Add your Studio access token in Settings to retry.",true);
+ const messages=directorMessages.slice(-24);
+ if(messages[messages.length-1]?.role!=="user")return setDirectorStatus("Send a new instruction to continue.",true);
+ if(!confirm("Retry your last request with "+$("directorProvider").selectedOptions[0].text+"? A successful API request may incur a charge."))return;
+ directorBusy=true;$("directorRetry").disabled=true;$("directorSend").disabled=true;setDirectorStatus("Retrying your previous brief…");
+ try{
+  const d=await parseResponse(await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json",...safeAuth()},body:JSON.stringify({provider:$("directorProvider").value,kind:$("directorKind").value,format:$("directorFormat").value,duration:Number($("directorDuration").value)||20,messages})}));
+  directorMessages.push({role:"assistant",content:d.reply});directorMessages=directorMessages.slice(-24);saveDirector();renderDirector();
+  setDirectorStatus("Reply ready from "+d.provider+" ("+d.model+").");$("directorRetry").style.display="none";
+ }catch(e){setDirectorStatus("Retry failed: "+e.message+". Try another model or review its Vercel configuration.",true)}
+ finally{directorBusy=false;$("directorRetry").disabled=false;$("directorSend").disabled=false}
 };
 $("directorUseBrief").onclick=()=>{
  const brief=directorMessages.filter(m=>m.role==="user").map(m=>m.content).join("\n\n");
