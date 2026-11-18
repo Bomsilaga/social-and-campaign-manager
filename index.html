@@ -31,7 +31,52 @@
 .post-fields{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
 @media(max-width:850px){.post-layout{grid-template-columns:1fr}}@media(max-width:500px){.post-fields{grid-template-columns:1fr}}
 
-</style></head><body><div class="shell"><aside class="aside"><div class="brand">◈ BOMA <span>AI</span></div><div class="sub">Social & Campaign Manager</div><div class="nav"><a href="#director">✦ AI Director Chat</a><a href="#postComposer">▧ Post & Media Composer</a><a href="#studio">◉ Production Studio</a><a href="#assets">▣ Licensed Asset Library</a><a href="#timeline">▤ Scene Timeline</a><a href="#export">◷ Export Centre</a><a href="#settings">⚙ Settings & Preferences</a><a href="#integrations">◈ Integrations</a><a href="#intelligence">⌕ Trend Radar</a><a href="#productionAI">♫ Narration & Stock</a><a href="#projects">▤ Saved Projects</a><a href="#facebook">f Facebook Pages</a><a href="#tiktok">♪ TikTok Sandbox</a></div><p class="muted" style="margin-top:60px">Private-browser prototype.<br>No API keys or social accounts connected.</p></aside><main class="main"><div class="head"><div><div class="eyebrow">BOMA AI / SOCIAL PRODUCTION</div><h1>Creative <span style="color:#63dcfb">Video Studio</span></h1><p class="muted">Create a post, an original short Reel (suggested 10–30 seconds), or a longer video. Length is editable; publishing requires review.</p></div><span class="status">✓ Review required · No automatic posting</span></div><section class="director" id="director" aria-label="AI director conversation">
+
+/* BOMA POP STUDIO — original playful interface inspired by familiar creator dashboards */
+:root{font-family:Inter,"Segoe UI",system-ui,sans-serif;color:#1e1940;background:#faf7ff}
+html{scroll-behavior:smooth}body{background:radial-gradient(ellipse at 72% 2%,#fdd7f7 0%,transparent 31%),radial-gradient(ellipse at 5% 32%,#d9ecff 0%,transparent 34%),#faf7ff;color:#262047}
+.shell{gap:0}.aside{width:247px;position:sticky;top:0;height:100vh;background:linear-gradient(175deg,#fff 0%,#f2e9ff 78%,#e9ddff);border-right:1px solid #e8defa;box-shadow:5px 0 38px #7a54a30a;padding:27px 17px;overflow-y:auto}
+.brand{font-size:20px;letter-spacing:-.055em;color:#26184e;font-weight:950}.brand span{background:linear-gradient(110deg,#7159ff,#e956c2);-webkit-background-clip:text;background-clip:text;color:transparent}
+.aside .sub{color:#796e98;line-height:1.5}.aside .nav{margin-top:28px}.nav a{color:#625883;font-weight:650;font-size:12px;padding:12px 11px;margin-bottom:4px;transition:.2s ease}.nav a:first-child,.nav a:hover,.nav a:focus-visible{background:linear-gradient(110deg,#8953ff,#a351fb);color:white;box-shadow:0 8px 18px #8e63e238;transform:translateX(2px)}.aside>p.muted{color:#7b7097!important;background:#ffffff91;padding:14px;border-radius:16px}
+.main{max-width:1650px;padding:27px clamp(15px,2.7vw,42px) 50px;color:#292349}
+.eyebrow,.tag{color:#824cf3}.head h1{font-size:clamp(27px,3.6vw,45px);color:#211741;letter-spacing:-.055em}.head h1 span{color:#8653ff!important}
+.head .muted,p.muted,.sub,.foot,.clip small,.field label,.provider p,.resultrow p{color:#6e668c}
+.status{color:#3f8278;background:#e7fff5;border:1px solid #aae9d2}
+.metrics{gap:12px}.card,.provider,.clip{background:#ffffffdf;color:#292349;border-color:#e6dcf2;box-shadow:0 7px 27px #9475c514;border-radius:22px}
+.card{padding:22px}.card h2,.card h3,.provider h3{color:#261e48}.metric strong{color:#4d2fc5}.metric small{color:#7d7297}
+.field input,.field select,.field textarea,.director-controls input,.director-controls select,.chat-composer textarea{background:#ffffff;color:#272043;border:1px solid #e1d7f0;box-shadow:inset 0 1px 2px #3b1c7108}
+.field input:focus,.field textarea:focus,.field select:focus,.chat-composer textarea:focus{outline:2px solid #bb9aff;border-color:#9b76f1}
+.field label{color:#76698f;font-weight:700}.btn{background:#f1eaff;color:#6c3fd3;border:1px solid #dfd1f3;border-radius:13px;transition:transform .2s,box-shadow .2s}.btn.primary{background:linear-gradient(120deg,#7058ff,#bd45ec 68%,#ed64aa);color:white;box-shadow:0 8px 19px #a658e34d}.btn:hover{transform:translateY(-2px);filter:brightness(1.02);box-shadow:0 7px 15px #9364c02d}
+.message,.notice{background:#f4edff;color:#655881;border:1px solid #e2d4ff}.notice{border-left:3px solid #a15df4}
+.preview{background:#ede6fa;border-color:#ded1f5}.clip{background:#fff}.clip.selected{border-color:#9866ee}.clip b{color:#32244f}
+.provider{background:linear-gradient(130deg,#fff,#f4eeff);border-color:#e4d8f5}.provider .category{color:#8369a5}.provider p{color:#74658d}.provider .state.off{background:#fff1d9;color:#95600e}.provider .state.ok{background:#dcffee;color:#16755b}
+.aiOutput,.resultrow,.post-view{background:#f9f6ff;color:#493f62;border:1px solid #e7daf7}
+.director{position:relative;background:#fff;border:1px solid #e7d7ff;border-radius:29px;box-shadow:0 20px 53px #8056bd2a;margin:19px 0 22px;overflow:hidden}
+.director-bar{background:linear-gradient(110deg,#8359fa 0%,#ad60f2 45%,#fa83c4 100%);padding:25px 27px 21px;position:relative;isolation:isolate}
+.director-bar:before,.director-bar:after{content:"";pointer-events:none;position:absolute;z-index:-1;border-radius:50%;filter:blur(1px)}.director-bar:before{height:210px;width:210px;top:-130px;right:24%;background:#ffffff48}.director-bar:after{height:150px;width:150px;right:-34px;bottom:-113px;background:#fcd6ff6a}
+.director-bar .tag{color:#e7faff}.director-title{font-size:28px;color:#fff;text-shadow:0 2px 6px #6940a849}.director-meta{color:#fffdfd;font-size:13px;max-width:680px}.director-indicator{background:#ffffff42;border:1px solid #fff9;color:#fff}
+.director-controls{padding:18px 22px;background:#fff;border-bottom:1px solid #f0e6fd}.director-controls label{color:#7f68a6}
+.chat-scroll{background:radial-gradient(ellipse at 90% 5%,#fff2fb,transparent 48%),#fff;height:370px}
+.chat-welcome{color:#7b7097}.chat-welcome strong{color:#32214f}.chat-bubble{background:#f3edff;border:1px solid #e6d7fb;color:#382956}.chat-bubble.user{background:linear-gradient(115deg,#7455e5,#a15fdf);color:white;border:0}.chat-bubble .who{color:#7049cc}.chat-bubble.user .who{color:#ebe3ff}
+.chat-quick{background:#fff}.chat-chip{color:#7444c8;background:#f5edff;border:1px solid #e6d7ff;transition:transform .2s}.chat-chip:hover{transform:translateY(-3px);background:#ede1ff}
+.chat-composer{background:#fcfaff;border-top:1px solid #efe5fa}.chat-substatus{color:#7e709c}.chat-substatus.error{color:#a93456}
+.post-asset{background:#fff;border:1px solid #e8dcf7}.post-asset .info{color:#615679}.post-view{background:linear-gradient(135deg,#fff,#f8f3ff)}
+.post-layout{grid-template-columns:minmax(0,1fr) minmax(0,.95fr)}
+.studio-hero{margin:18px 0;position:relative;isolation:isolate;overflow:hidden;min-height:185px;display:flex;justify-content:space-between;align-items:center;gap:20px;padding:28px 30px;border-radius:27px;background:linear-gradient(112deg,#744cff 0%,#995bf8 53%,#fe87ae 100%);color:#fff;box-shadow:0 18px 38px #9953dd44}
+.studio-hero:before,.studio-hero:after{content:"";position:absolute;z-index:-1;border-radius:50%;pointer-events:none}.studio-hero:before{width:280px;height:280px;right:7%;top:-120px;background:#ffffff20}.studio-hero:after{width:210px;height:210px;right:-60px;bottom:-150px;background:#a2d8ff55}
+.studio-hero h2{font-size:clamp(22px,2.7vw,34px);line-height:1.2;margin:6px 0 9px;max-width:620px;color:#fff}.studio-hero p{margin:0;max-width:630px;color:#fdf4ff;font-size:13px}
+.hero-bubbles{display:flex;align-items:center;justify-content:center;gap:7px;min-width:175px}
+.hero-bubbles span{width:57px;height:57px;border:1px solid #ffffffb8;border-radius:19px;background:#ffffff48;display:grid;place-items:center;font-size:26px;box-shadow:0 10px 22px #632dac44;animation:bob 3s ease-in-out infinite alternate}
+.hero-bubbles span:nth-child(2){transform:translateY(-18px);animation-delay:.5s;background:#f9c4ff66}
+.hero-bubbles span:nth-child(3){transform:translateY(8px);animation-delay:1s;background:#b3ebff66}
+.studio-quick{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}.studio-quick button{border:1px solid #e6dbfa;border-radius:17px;padding:13px 16px;background:#fff;color:#5c4290;font-weight:800;box-shadow:0 6px 19px #9a83c81f;cursor:pointer;transition:.2s}.studio-quick button:hover{transform:translateY(-4px);background:#f1e8ff;box-shadow:0 9px 22px #a380de39}
+.studio-quick button span{display:block;font-weight:500;font-size:11px;color:#897ea0;margin-top:3px}
+@keyframes bob{from{translate:0 -5px}to{translate:0 6px}}
+@media(prefers-reduced-motion:reduce){.hero-bubbles span{animation:none}.studio-quick button,.btn{transition:none}}
+@media(max-width:980px){.aside{display:none}.main{padding:18px}.studio-hero{padding:22px}.post-layout{grid-template-columns:1fr}}
+@media(max-width:590px){.studio-hero{min-height:145px;padding:18px}.hero-bubbles{min-width:65px;flex-direction:column}.hero-bubbles span{width:36px;height:36px;font-size:18px;border-radius:11px}.hero-bubbles span:nth-child(3){display:none}.studio-quick button{flex:1 1 42%;padding:11px}.director-title{font-size:23px}.head .status{font-size:10px}}
+
+</style></head><body><div class="shell"><aside class="aside"><div class="brand">◈ BOMA <span>AI</span></div><div class="sub">Social & Campaign Manager</div><div class="nav"><a href="#director">✦ AI Director Chat</a><a href="#postComposer">▧ Post & Media Composer</a><a href="#studio">◉ Production Studio</a><a href="#assets">▣ Licensed Asset Library</a><a href="#timeline">▤ Scene Timeline</a><a href="#export">◷ Export Centre</a><a href="#settings">⚙ Settings & Preferences</a><a href="#integrations">◈ Integrations</a><a href="#intelligence">⌕ Trend Radar</a><a href="#productionAI">♫ Narration & Stock</a><a href="#projects">▤ Saved Projects</a><a href="#facebook">f Facebook Pages</a><a href="#tiktok">♪ TikTok Sandbox</a></div><p class="muted" style="margin-top:60px">Private-browser prototype.<br>No API keys or social accounts connected.</p></aside><main class="main"><div class="head"><div><div class="eyebrow">BOMA AI / SOCIAL PRODUCTION</div><h1>Creative <span style="color:#63dcfb">Video Studio</span></h1><p class="muted">Create a post, an original short Reel (suggested 10–30 seconds), or a longer video. Length is editable; publishing requires review.</p></div><span class="status">✓ Review required · No automatic posting</span></div><div class="studio-hero"><div><div class="tag" style="color:#f4edff">YOUR CREATIVE COMMAND CENTRE</div><h2>One idea. Endless creative possibilities.</h2><p>Chat with your AI Director, prepare a beautiful post with images, or develop a short Reel. Your content remains yours to review and approve.</p></div><div class="hero-bubbles" aria-hidden="true"><span>✦</span><span>▣</span><span>▶</span></div></div><div class="studio-quick"><button type="button" data-studio-go="director" data-studio-type="video">▶ Video or Reel<span>Start with an idea</span></button><button type="button" data-studio-go="postComposer" data-studio-type="photo">▧ Social media post<span>Attach photos and captions</span></button><button type="button" data-studio-go="director" data-studio-type="campaign">◈ Campaign<span>Plan a complete series</span></button><button type="button" data-studio-go="director" data-studio-type="storyboard">✦ Script & storyboard<span>Create with AI</span></button></div><section class="director" id="director" aria-label="AI director conversation">
  <div class="director-bar"><div><div class="tag">YOUR AI PRODUCTION PARTNER</div><div class="director-title">Tell the studio what to create.</div><div class="director-meta">Describe an idea naturally. Request a video, advert, social post or campaign. Continue chatting to refine the same project.</div></div><div class="director-indicator">Human-approved workflow</div></div>
  <div class="director-controls">
   <div><label for="directorKind">I want to create</label><select id="directorKind"><option value="video">A video / Reel</option><option value="advert">An advertisement</option><option value="social post">A social media post</option><option value="campaign">A complete campaign</option><option value="storyboard">A storyboard</option><option value="document">A business document</option></select></div>
@@ -403,5 +448,14 @@ $("postCopy").onclick=async()=>{try{await navigator.clipboard.writeText($("postC
 $("postExport").onclick=()=>{const p=getPost();const manifest={schemaVersion:1,type:"social-post-manifest",...p,approvedForReview:postApproved,validationError:postValidation()||null,attachments:postAttachments.map(a=>({filename:a.file.name,mimeType:a.file.type,size:a.file.size,rights:a.rights,source:a.source,stored:false})),notes:"Manifest contains NO media file bytes, access tokens or posting authority; source files must be kept separately."};download("boma-social-post-"+Date.now()+".json",JSON.stringify(manifest,null,2),"application/json");postStatus("Post manifest downloaded. No media files were uploaded or embedded.")};
 postRender();
 
+
+// Bubbly studio creation shortcuts: genuine navigation and content selection
+document.querySelectorAll("[data-studio-go]").forEach(b=>b.addEventListener("click",()=>{
+ const area=b.dataset.studioGo,kind=b.dataset.studioType;
+ if(area==="postComposer")$("postType").value=kind;
+ else $("directorKind").value=kind;
+ document.getElementById(area).scrollIntoView({behavior:"smooth",block:"start"});
+ if(area==="postComposer")$("postCaption").focus();else $("directorPrompt").focus();
+}));
 renderList();drawAt(0);
 </script></body></html>
