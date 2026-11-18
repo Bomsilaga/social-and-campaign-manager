@@ -7,6 +7,20 @@
 - **Hosting:** Vercel (web/API), Railway (worker scaffold), Supabase (JSON manifest database), GitHub
 - **Goal:** turn natural-language creative direction into an original, editable, multi-format content package, then (after review and account authorisation) publish and optimise it.
 
+
+## Chat-to-video automatic production (prototype, 18 November 2026)
+
+The AI Director now includes **Create Reel Now**, not only text replies. With a valid studio token, `ALLOW_PAID_GENERATION=true`, valid OpenAI/Claude settings, OpenAI image model and ElevenLabs voice settings, the user can describe a Reel in chat and click the production action. Short chat instructions such as **“create now”** and **“do all”** (for video mode) are redirected to the production action using the previous user brief; confirmation is requested once before paid calls.
+
+Actual execution path:
+1. `POST /api/reel-plan` invokes the selected language model and requests a validated 3-scene JSON plan and correctly timed narration.
+2. `POST /api/image` runs for each of the three scene prompts, returning actual generated PNGs attached to the browser scene editor. An image failure becomes an explicit labelled original placeholder, not a false success.
+3. `POST /api/voice` invokes ElevenLabs and attaches a returned MP3 to the video editor, or reports the provider's real error.
+4. Browser Canvas/MediaRecorder automatically attempts a full timeline render and downloads MP4 if natively supported, otherwise WebM. Rendering proceeds at real-time speed; keep tab open. Media generated in the browser is **not persisted to cloud storage** and local files are lost on reload unless downloaded. No automatic posting.
+5. Output reports generated assets and errors honestly. A production plan without images/MP3 or render is not marked as a finished video.
+
+**Limitations:** Three original generated stills make a **slideshow-style Reel**, not AI-animated footage. This is a first functional end-to-end pathway, not a replacement for Remotion/FFmpeg MP4 production. Narration timing is approximate and not yet automatically aligned by word-level timestamps. No music provider or post-upload API is executed. Browser rendering and downloads need manual acceptance testing on Windows Chrome/Edge; actual paid-provider calls have not yet been independently tested from this assistant's session.
+
 ## 1. Product promise and guiding principles
 
 A user should be able to say **“Create a 20-second Facebook Reel about an Australian engineering fact and a matching image post; show me drafts before publishing”** and receive a realistic concept, researched/scripted content, finished media once rendering is available, platform-ready captions and an editable publication plan.
