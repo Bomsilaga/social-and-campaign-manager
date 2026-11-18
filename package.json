@@ -1,0 +1,7 @@
+{
+  "name": "social-and-campaign-manager",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "Boma AI Social Campaign Manager — static studio and protected optional Vercel API routes"
+}
