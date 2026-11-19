@@ -21,6 +21,12 @@ Actual execution path:
 
 **Limitations:** Three original generated stills make a **slideshow-style Reel**, not AI-animated footage. This is a first functional end-to-end pathway, not a replacement for Remotion/FFmpeg MP4 production. Narration timing is approximate and not yet automatically aligned by word-level timestamps. No music provider or post-upload API is executed. Browser rendering and downloads need manual acceptance testing on Windows Chrome/Edge; actual paid-provider calls have not yet been independently tested from this assistant's session.
 
+## Narration branding rule
+
+**Every narrated video, Reel, Short, and AI Studio Director voiceover ends with the exact spoken phrase “Now you know.”** It must be the final words of the narration, including when the script is revised, shortened, regenerated or converted to ElevenLabs speech. Include the sign-off inside the requested video duration and word budget. An on-screen CTA is allowed after or alongside the sign-off, but do not speak anything afterward. Silent videos without narration are exempt.
+
+The `/api/reel-plan` endpoint also normalises the generated narration so this phrase is always the exact final sentence.
+
 ## 1. Product promise and guiding principles
 
 A user should be able to say **“Create a 20-second Facebook Reel about an Australian engineering fact and a matching image post; show me drafts before publishing”** and receive a realistic concept, researched/scripted content, finished media once rendering is available, platform-ready captions and an editable publication plan.
